@@ -8,7 +8,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-API_BASEURL = "http://localhost:8080"
+API_BASEURL = "http://localhost:80"
 
 ROOT_ID = "069cb8d7-bbdd-47d3-ad8f-82ef4c269df1"
 
@@ -291,7 +291,11 @@ def main():
     print(f"Testing API on {API_BASEURL}")
 
     if test_name is None:
-        test_all()
+        #test_all()
+        test_import()
+        test_nodes()
+        test_updates()
+        test_delete()
     else:
         test_func = globals().get(f"test_{test_name}")
         if not test_func:
