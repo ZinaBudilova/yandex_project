@@ -1,4 +1,3 @@
-from datetime import datetime
 from db.schema import Items, Children
 
 
@@ -29,13 +28,9 @@ def get_item_properties(item, update_date):
     return obj_item
 
 
-def update_is_now():
-    return datetime.now().isoformat()
-
-
 def update_item(item):
     previous = Items.query.filter_by(id=item.id).first()
-    previous.updateDate = update_is_now()
+    previous.updateDate = item.updateDate
     previous.parentId = item.parentId
     if item.type == "FILE":
         previous.size = item.size
@@ -81,34 +76,41 @@ def folder_size_add(item):
 
 
 def all_parents_date_update(item):
+    upd_parents = []
     parent = Items.query.filter_by(id=item.parentId).first()
     while parent is not None:
         parent.updateDate = item.updateDate
+        upd_parents.append(parent)
         parent = Items.query.filter_by(id=parent.parentId).first()
+    return upd_parents
 
 
 def children_add(item):
     relation = None
+    upd = []
     if item.parentId is not None:
         relation = Children(
             parentId=item.parentId,
             childId=item.id
         )
-        all_parents_date_update(item)
-    return relation
+        upd = all_parents_date_update(item)
+    return relation, upd
 
 
 def children_update(item):
     relation_to_delete = relation_to_add = None
+    upd_parents = []
     previous = Items.query.filter_by(id=item.id).first()
     if item.parentId != previous.parentId:
         if previous.parentId is not None:
             relation_to_delete = Children.query.filter_by(id=item.parentId).first()
-            all_parents_date_update(previous)
+            upd1 = all_parents_date_update(previous)
+            upd_parents.extend(upd1)
         if item.parentId is not None:
             relation_to_add = Children(
                 parentId=item.parentId,
                 childId=item.id
             )
-            all_parents_date_update(item)
-    return relation_to_delete, relation_to_add
+            upd2 = all_parents_date_update(item)
+            upd_parents.extend(upd2)
+    return relation_to_delete, relation_to_add, upd_parents

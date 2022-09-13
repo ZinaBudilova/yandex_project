@@ -291,11 +291,7 @@ def main():
     print(f"Testing API on {API_BASEURL}")
 
     if test_name is None:
-        #test_all()
-        test_import()
-        test_nodes()
-        test_updates()
-        test_delete()
+        test_all()
     else:
         test_func = globals().get(f"test_{test_name}")
         if not test_func:

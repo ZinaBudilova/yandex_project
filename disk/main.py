@@ -2,13 +2,13 @@ import flask
 import os
 import json
 
-from db.schema import db, Items, Children
+from db.schema import db, Items, Children, History
 import validation
 import import_funcs
 from delete_funcs import delete_children
 from nodes_funcs import add_children, dict_preprocess
 from updates_funcs import minus_day, dict_preprocess_light
-from history_funcs import write_history
+from history_funcs import write_history, delete_history
 
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
@@ -32,25 +32,37 @@ def imports():
         for raw_item in items:
             item = import_funcs.get_item_properties(raw_item, update_date)
             valid, update = validation.item_format_validate(item)
+            upd_parents = []
             if not valid:
                 flask.abort(400)
-            elif not update:  # add
-                db.session.add(item)
+            # add
+            elif not update:
+                db.session.add(item)  # items
                 import_funcs.folder_size_add(item)
-                relation = import_funcs.children_add(item)
+                relation, upd_parents = import_funcs.children_add(item)  # children
                 if relation is not None:
                     db.session.add(relation)
-            else:  # update
-                import_funcs.update_item(item)
+            # update
+            else:
+                import_funcs.update_item(item)  # items
                 import_funcs.folder_size_update(item)
-                relation_del, relation_add = import_funcs.children_update(item)
+                relation_del, relation_add, upd_parents = import_funcs.children_update(item)  # children
                 if relation_del is not None:
                     db.session.delete(relation_del)
                 if relation_add is not None:
                     db.session.add(relation_add)
-            history_object = write_history(item)
-            db.session.add(history_object)
-            # add records of folder size changing...
+            db.session.commit()
+            # history
+            record = write_history(item)
+            db.session.add(record)
+            for parent in upd_parents:
+                prev_parent_record = History.query.filter_by(key=parent.id + " " + parent.updateDate).first()
+                if prev_parent_record is None:
+                    parent_record = write_history(parent)
+                    db.session.add(parent_record)
+                # in case folder's size increases several times during one update
+                elif prev_parent_record.size != parent.size:
+                    prev_parent_record.size = parent.size
             db.session.commit()
     return "successful import"
 
@@ -70,10 +82,12 @@ def delete(item_id):
             relation = Children.query.filter_by(parentId=item.id).first()
             while relation is not None:
                 item_del, child_del = delete_children(relation)
+                delete_history(item_del)
                 db.session.delete(item_del)
                 db.session.delete(child_del)
                 db.session.commit()
                 relation = Children.query.filter_by(parentId=item.id).first()
+        delete_history(item)
         db.session.delete(item)
         db.session.commit()
     return "successful deletion"
@@ -128,7 +142,17 @@ def history(item_id):
     elif not validation.date_validate(date_start) or not validation.date_validate(date_end):
         flask.abort(400)
     else:
-        pass
+        records = History.query.filter(
+            History.id == item.id,
+            History.updateDate > date_start,
+            History.updateDate <= date_end
+        )
+        if records is not None:
+            for rec in records:
+                item = rec.__dict__
+                dict_preprocess(item)
+                result.append(item)
+    print(result)
     return json.dumps(result)
 
 

@@ -47,12 +47,13 @@ class Children(db.Model):
 
 class History(db.Model):
     __tablename__ = "history"
-    id = db.Column(db.String(36), primary_key=True, nullable=False)
+    id = db.Column(db.String(36), nullable=False)
     type = db.Column(db.Enum(DataType), nullable=False)
     size = db.Column(db.Integer)
     url = db.Column(db.String(255))
-    updateDate = db.Column(db.String(26), primary_key=True, nullable=False)
+    updateDate = db.Column(db.String(26), nullable=False)
     parentId = db.Column(db.String(36))
+    key = db.Column(db.String(63), primary_key=True, nullable=False)
 
     def __init__(self, id, type, size, url, updateDate, parentId):
         self.id = id
@@ -61,6 +62,7 @@ class History(db.Model):
         self.url = url
         self.updateDate = updateDate
         self.parentId = parentId
+        self.key = id + " " + updateDate
 
 
 db.create_all()
