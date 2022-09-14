@@ -152,7 +152,6 @@ def history(item_id):
                 item = rec.__dict__
                 dict_preprocess(item)
                 result.append(item)
-    print(result)
     return json.dumps(result)
 
 
