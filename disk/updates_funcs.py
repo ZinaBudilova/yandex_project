@@ -11,6 +11,7 @@ def minus_day(date):
 
 def dict_preprocess_light(item_dict):
     item_dict.pop("_sa_instance_state")
+    item_dict["date"] = item_dict.pop("updateDate")
     if item_dict["type"] == DataType.FILE:
         item_dict["type"] = "FILE"
     else:

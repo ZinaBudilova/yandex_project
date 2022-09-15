@@ -5,7 +5,7 @@ import json
 from db.schema import db, Items, Children, History
 import validation
 import import_funcs
-from delete_funcs import delete_children
+from delete_funcs import delete_children, decrease_parents_sizes
 from nodes_funcs import add_children, dict_preprocess
 from updates_funcs import minus_day, dict_preprocess_light
 from history_funcs import write_history, delete_history
@@ -75,10 +75,10 @@ def delete(item_id):
     item = Items.query.get(item_id)
     if item is None:
         flask.abort(404)
-    elif not validation.date_validate(date):
+    elif not date or not validation.date_validate(date):
         flask.abort(400)
     else:
-        if item.type.value == "FOLDER":
+        if item.type.value == "FOLDER":  # удаляем детей папки
             relation = Children.query.filter_by(parentId=item.id).first()
             while relation is not None:
                 item_del, child_del = delete_children(relation)
@@ -87,6 +87,20 @@ def delete(item_id):
                 db.session.delete(child_del)
                 db.session.commit()
                 relation = Children.query.filter_by(parentId=item.id).first()
+        # удаляем запись о связи удаляемого элемента с его родителем
+        if item.parentId is not None:
+            relation = Children.query.filter_by(childId=item.id).first()
+            db.session.delete(relation)
+            db.session.commit()
+            # уменьшаем размер папок-родителей
+            decrease_parents_sizes(item, date)
+            # и пишем об этих изменениях в историю
+            parent_id = item.parentId
+            while parent_id is not None:
+                parent = Items.query.filter_by(id=parent_id).first()
+                record = write_history(parent)
+                db.session.add(record)
+                parent_id = parent.parentId
         delete_history(item)
         db.session.delete(item)
         db.session.commit()
@@ -115,7 +129,7 @@ def updates():
     result = []
     args = flask.request.args
     date = args.get("date")
-    if not validation.date_validate(date):
+    if not date or not validation.date_validate(date):
         flask.abort(400)
     else:
         day_before = minus_day(date)
@@ -137,20 +151,30 @@ def history(item_id):
     date_start = args.get("dateStart")
     date_end = args.get("dateEnd")
     item = Items.query.get(item_id)
+    # если нет параметров даты, выдать историю за все время!!!
     if item is None:
         flask.abort(404)
-    elif not validation.date_validate(date_start) or not validation.date_validate(date_end):
+    elif (date_start and not date_end) or (date_end and not date_start) or \
+            (date_start and date_end and date_start > date_end) or \
+            (date_start and not validation.date_validate(date_start)) or \
+            (date_end and not validation.date_validate(date_end)):
         flask.abort(400)
     else:
-        records = History.query.filter(
-            History.id == item.id,
-            History.updateDate > date_start,
-            History.updateDate <= date_end
-        )
+        if date_start and date_end:  # в интервале
+            records = History.query.filter(
+                History.id == item.id,
+                History.updateDate >= date_start,
+                History.updateDate < date_end
+            )
+        else:  # за все время
+            records = History.query.filter(
+                History.id == item.id
+            )
         if records is not None:
             for rec in records:
                 item = rec.__dict__
                 dict_preprocess(item)
+                item.pop("key")
                 result.append(item)
     return json.dumps(result)
 

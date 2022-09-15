@@ -23,7 +23,7 @@ class Items(db.Model):
     type = db.Column(db.Enum(DataType), nullable=False)
     size = db.Column(db.Integer)
     url = db.Column(db.String(255))
-    updateDate = db.Column(db.String(26), nullable=False)
+    updateDate = db.Column(db.String(24), nullable=False)
     parentId = db.Column(db.String(36))
 
     def __init__(self, id, type, size, url, updateDate, parentId):
@@ -51,7 +51,7 @@ class History(db.Model):
     type = db.Column(db.Enum(DataType), nullable=False)
     size = db.Column(db.Integer)
     url = db.Column(db.String(255))
-    updateDate = db.Column(db.String(26), nullable=False)
+    updateDate = db.Column(db.String(24), nullable=False)
     parentId = db.Column(db.String(36))
     key = db.Column(db.String(63), primary_key=True, nullable=False)
 

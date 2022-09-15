@@ -8,3 +8,12 @@ def delete_children(relation):
     item_del = Items.query.filter_by(id=relation.childId).first()
     child_del = Children.query.filter_by(childId=relation.childId).first()
     return item_del, child_del
+
+
+def decrease_parents_sizes(item, update_date):
+    parent_id = item.parentId
+    while parent_id is not None:
+        parent = Items.query.filter_by(id=parent_id).first()
+        parent.size -= item.size
+        parent.updateDate = update_date
+        parent_id = parent.parentId

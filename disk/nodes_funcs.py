@@ -8,6 +8,8 @@ def dict_preprocess(item_dict):
         item_dict["type"] = "FILE"
     else:
         item_dict["type"] = "FOLDER"
+        if item_dict["size"] is None:
+            item_dict["size"] = 0
 
 
 def add_children(item_dict):
